@@ -1,11 +1,13 @@
 mod color;
 mod config;
 mod key;
+mod lock;
 mod menu;
 mod text;
 
 use std::collections::{HashMap, HashSet};
 use std::f64::consts::{FRAC_PI_2, PI, TAU};
+use std::fmt::Debug;
 use std::io;
 use std::os::fd::{AsRawFd, RawFd};
 use std::os::unix::process::CommandExt;
@@ -95,6 +97,15 @@ fn main() -> anyhow::Result<()> {
         }
     }
 
+    let global_lock = match lock::GlobalLock::try_lock() {
+        Ok(lock) => lock,
+        Err(e) if matches!(e.kind(), std::io::ErrorKind::WouldBlock) => {
+            eprintln!("wlr-which-key is already running!");
+            std::process::exit(1)
+        }
+        Err(e) => return Err(e.into()),
+    };
+
     let mut conn = Connection::connect()?;
     conn.blocking_roundtrip()?;
     conn.add_registry_cb(wl_registry_cb);
@@ -182,6 +193,8 @@ fn main() -> anyhow::Result<()> {
             Err(e) => return Err(e.into()),
         }
     }
+
+    drop(global_lock);
 
     Ok(())
 }
