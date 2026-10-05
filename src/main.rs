@@ -68,9 +68,12 @@ fn main() -> anyhow::Result<()> {
         config::ConfigBuilder::new(args.config.as_deref().unwrap_or("config"))?;
 
     if let Some(theme) = args.theme.as_deref() {
-        let theme = config::ThemeBuilder::new(theme)?;
-
-        config_builder.with_theme(theme);
+        match config::ThemeBuilder::new(theme) {
+            Ok(theme) => config_builder.with_theme(theme),
+            Err(e) => {
+                eprintln!("Failed to load theme {theme}:\n\n{e}\n\nContinuing without theme.");
+            }
+        }
     }
 
     let config = config_builder.build();
